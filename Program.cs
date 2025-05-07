@@ -1,6 +1,19 @@
+using Serilog;
+using BookingService.Data;
+using Microsoft.EntityFrameworkCore;
+
+
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateLogger();
+
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Host.UseSerilog();
+
 // Add services to the container.
+builder.Services.AddDbContext<BookingDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
