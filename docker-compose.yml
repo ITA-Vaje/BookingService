@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   booking_api:
     container_name: booking-service
@@ -8,6 +10,9 @@ services:
       - "8080:8080"
     depends_on:
       - sqlserver
+      - activemq
+    environment:
+      - ACTIVEMQ_URI=tcp://activemq:61616 
 
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -17,3 +22,18 @@ services:
       - SA_PASSWORD=YourStrong!Passw0rd
     ports:
       - "1433:1433"
+
+  activemq:
+    image: apache/activemq-artemis:2.30.0-alpine  
+    container_name: activemq
+    ports:
+      - "8161:8161"  # Web console
+      - "61616:61616"  # Default AMQP port
+      - "5445:5445"  
+      - "5672:5672"
+    environment:
+      - AMQ_USER=artemis 
+      - AMQ_PASSWORD=artemis  
+
+volumes:
+  mongo-data:
