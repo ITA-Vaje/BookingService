@@ -1,4 +1,5 @@
 ﻿using BookingService.Data;
+using BookingService.MessagingServices;
 using BookingService.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,10 +11,14 @@ namespace BookingService.Controllers
     public class BookingController : ControllerBase
     {
         private readonly BookingDbContext _context;
+        private readonly ArtemisPublisher _mqPublisher;
+        private readonly ILogger<BookingController> _logger;
 
-        public BookingController(BookingDbContext context)
+        public BookingController(BookingDbContext context, ArtemisPublisher mqPublisher, ILogger<BookingController> logger)
         {
             _context = context;
+            _mqPublisher = mqPublisher;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -40,6 +45,18 @@ namespace BookingService.Controllers
             _context.Bookings.Add(booking);
             await _context.SaveChangesAsync();
 
+            var message = $"Created new booking with id: {booking.Id}";
+
+            try
+            {
+                _mqPublisher.SendBookingCreatedMessage(booking);
+                _logger.LogInformation(message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send create message to ActiveMQ");
+            }
+
             return CreatedAtAction(nameof(GetBooking), new { id = booking.Id }, booking);
         }
 
@@ -48,15 +65,17 @@ namespace BookingService.Controllers
         public async Task<IActionResult> UpdateBooking(int id, Booking updatedBooking)
         {
             if (id != updatedBooking.Id)
-            {
                 return BadRequest();
-            }
 
             _context.Entry(updatedBooking).State = EntityState.Modified;
 
             try
             {
                 await _context.SaveChangesAsync();
+
+                var message = $"Updated booking with id: {updatedBooking.Id}";
+                _mqPublisher.SendBookingUpdatedMessage(updatedBooking);
+                _logger.LogInformation(message);
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -64,6 +83,10 @@ namespace BookingService.Controllers
                     return NotFound();
                 else
                     throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send update message to ActiveMQ");
             }
 
             return NoContent();
@@ -75,12 +98,22 @@ namespace BookingService.Controllers
         {
             var booking = await _context.Bookings.FindAsync(id);
             if (booking == null)
-            {
                 return NotFound();
-            }
 
             _context.Bookings.Remove(booking);
             await _context.SaveChangesAsync();
+
+            var message = $"Deleted booking with ID {booking.Id}";
+
+            try
+            {
+                _mqPublisher.SendBookingDeletedMessage(booking);
+                _logger.LogInformation(message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send delete message to ActiveMQ");
+            }
 
             return NoContent();
         }

@@ -1,7 +1,8 @@
 using Serilog;
 using BookingService.Data;
 using Microsoft.EntityFrameworkCore;
-
+using BookingService.MessagingServices;
+using Apache.NMS.ActiveMQ.Transport.Tcp; 
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -19,6 +20,9 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+builder.Services.AddSingleton<ArtemisPublisher>();
+builder.Services.AddHostedService<ArtemisListener>();
 
 var app = builder.Build();
 
